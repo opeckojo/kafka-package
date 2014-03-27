@@ -89,29 +89,30 @@ def prepare_deb_structure():
     mkdir_p('%s/build/etc/kafka'%(workdir,))
     mkdir_p('%s/build/usr/lib'%(workdir,))
     mkdir_p('%s/build/var/log/kafka'%(workdir,))
+    mkdir_p('%s/build/var/spool/kafka'%(workdir,))
 
 def add_base_files():
     print "Copying files into .deb work area "
-    exe('cp kafka-server %s/build/etc/init.d' %(workdir,))
+    exe('cp kafka %s/build/etc/init.d' %(workdir,))
     exe('cp kafka-nofiles.conf %s/build/etc/security/limits.d' %(workdir,))
     exe('cp kafka %s/build/etc/sysconfig' %(workdir,))
-    exe('cp preinst %s' %(workdir,))
     exe('cp postinst %s' %(workdir,))
+    exe('cp postrm %s' %(workdir,))
     exe('cp log4j.properties %s/build/etc/kafka' %(workdir,))
+    exe('cp environment %s/build/etc/kafka' %(workdir,))
     exe('cp %s/%s/config/server.properties %s/build/etc/kafka' %(workdir, KAFKA_SRC, workdir))
     exe('cp %s/%s/config/consumer.properties %s/build/etc/kafka' %(workdir, KAFKA_SRC, workdir))
     exe('cp %s/%s/config/producer.properties %s/build/etc/kafka' %(workdir, KAFKA_SRC, workdir))
     exe('cp %s/%s/config/zookeeper.properties %s/build/etc/kafka' %(workdir, KAFKA_SRC, workdir))
 
 def build_kafka():
-    print "Updating Kafka "
-    os.system('./sbt update')
     print "Building Kafka "
-    os.system('./sbt package')
+    os.system('./sbt release-zip')
 
 def add_kafka_build():
     print "Copying Kafka build to ", workdir
     # not very surgical
+    os.chdir('%s/%s/%s'%(origdir,workdir,KAFKA_SRC))
     shutil.copytree(os.getcwd(), '%s/%s/build/usr/lib/kafka/'% (origdir, workdir))
 
 def set_the_server_data_path():
@@ -138,7 +139,7 @@ def create_an_deb():
     deb_src='dir'
     deb_user ='kafka'
     deb_group='kafka'
-    deb_preinst='../preinst'
+    deb_postrm='../postrm'
     deb_postinst='../postinst'
     deb_prefix='/'
     deb_version="%s-%s"%(PKG_VERSION,deb_package_version)
@@ -158,9 +159,9 @@ def create_an_deb():
 -s %s \
 --rpm-user %s \
 --rpm-group %s \
---before-install %s \
+--after-remove %s \
 --after-install %s \
---config-files /etc/init.d/kafka-server \
+--config-files /etc/init.d/kafka \
 --config-files /etc/kafka/server.properties  \
 --config-files /etc/kafka/producer.properties \
 --config-files /etc/kafka/zookeeper.properties \
@@ -184,7 +185,7 @@ def create_an_deb():
         deb_src,
         deb_user,
         deb_group,
-        deb_preinst,
+        deb_postrm,
         deb_postinst,
         deb_build_folder
         ,)
